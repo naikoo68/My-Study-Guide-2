@@ -1,0 +1,86 @@
+name: CI
+
+# Validates every push and pull request to main so a broken build is caught
+# *before* the frontend (Cloudflare) and backend (Oracle VM) auto-deploy it to production.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  frontend:
+    name: Frontend — lint & build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      # Security: flag known-vulnerable dependencies. Advisory — it prints any
+      # findings to the log but NEVER blocks the build (continue-on-error), so
+      # it can't stop a deploy. Review the log and fix highs/criticals when
+      # convenient (e.g. `npm audit fix`).
+      - name: Security audit (advisory)
+        run: npm audit --audit-level=high
+        continue-on-error: true
+      # Lint is advisory: it reports issues but does not fail the pipeline, so
+      # pre-existing lint debt across the codebase can't block deploys. The
+      # build below is the hard gate. Flip continue-on-error to false once the
+      # codebase is lint-clean to enforce linting again.
+      - name: Lint (advisory)
+        run: npm run lint
+        continue-on-error: true
+      # Correctness gate: runs the frontend unit tests (pure helpers under
+      # src/lib/*) with Vitest. A failure here blocks the merge/deploy.
+      - name: Tests (unit)
+        run: npm test
+      - run: npm run build
+
+  backend:
+    name: Backend — install & syntax check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      # Uses `npm install` (not `npm ci`) so the lockfile is generated/refreshed
+      # on the runner after the MongoDB->DynamoDB dependency change. Run
+      # `npm install` locally once and commit backend/package-lock.json for
+      # fully reproducible installs.
+      #
+      # --legacy-peer-deps: the AWS SDK v3 packages (@aws-sdk/client-dynamodb and
+      # @aws-sdk/lib-dynamodb) are released in lockstep and only pinned here to a
+      # floating `^3.658.0`. When the registry briefly serves a newer lib-dynamodb
+      # than the resolved client-dynamodb, lib-dynamodb's strict peer range
+      # (^3.<newer>) makes a default install fail with ERESOLVE even though the two
+      # work together. Skipping strict peer resolution keeps the install (and the
+      # security tests below) reliable.
+      - run: npm install --legacy-peer-deps
+      # Security: flag known-vulnerable dependencies. Advisory — prints findings
+      # to the log but NEVER blocks the build (continue-on-error). Review and fix
+      # highs/criticals when convenient (e.g. `npm audit fix`).
+      - name: Security audit (advisory)
+        run: npm audit --audit-level=high
+        continue-on-error: true
+      - name: Syntax-check all source files
+        run: |
+          set -e
+          for f in $(find src -name "*.js"); do node --check "$f"; done
+          echo "All backend files passed syntax check."
+      # Security & correctness gate: runs the tenant-isolation tests (and any
+      # others) against an in-memory MongoDB. This is a HARD gate — a failure
+      # here blocks the merge/deploy, because a tenant-isolation regression is a
+      # data-leak between customers.
+      - name: Tests (tenant isolation & security)
+        run: npm test

@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <!-- Guard against the "Failed to execute 'removeChild' / 'insertBefore' on
+         'Node'" crash that browser page-translation (Google / Brave Translate)
+         triggers by swapping out React-managed text nodes. If the target's
+         parent no longer matches, no-op instead of throwing so the app keeps
+         running. Applied before React loads. See facebook/react#11538. -->
+    <script>
+      (function () {
+        if (typeof Node !== "function" || !Node.prototype) return;
+        var realRemoveChild = Node.prototype.removeChild;
+        Node.prototype.removeChild = function (child) {
+          if (child.parentNode !== this) return child;
+          return realRemoveChild.apply(this, arguments);
+        };
+        var realInsertBefore = Node.prototype.insertBefore;
+        Node.prototype.insertBefore = function (newNode, referenceNode) {
+          if (referenceNode && referenceNode.parentNode !== this) return newNode;
+          return realInsertBefore.apply(this, arguments);
+        };
+      })();
+    </script>
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#2563eb" />
+
+    <!-- Installable PWA (client "My Practice" app) -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="My Practice" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Legacy hash-URL restore: the app moved from hash routing ("/#/path") to
+         clean URLs, but old bookmarks, shared links and PWA shortcuts may still
+         point at "/#/admin/users" etc. A hash fragment is never sent to the
+         server and is ignored by the path-based router, so those URLs silently
+         drop to the home page (and refreshing stays there). Rewrite a leading
+         "#/…" back into a real path BEFORE React boots so the route resolves.
+         No-op for normal in-page anchors, which don't start with "#/". -->
+    <script>
+      (function () {
+        try {
+          var l = window.location;
+          var h = l.hash;
+          if (h && h.charAt(1) === "/") {
+            var target = h.slice(1); // "/admin/users" (may carry its own ?query)
+            // Keep any query already on the base URL when the hash has none.
+            if (l.search && target.indexOf("?") === -1) target += l.search;
+            window.history.replaceState(null, "", target);
+          }
+        } catch (e) {
+          /* never let this block the app from loading */
+        }
+      })();
+    </script>
+
+    <!-- SPA deep-link restore: if 404.html bounced here with the original path
+         encoded as "?/...", rewrite the URL back to that path BEFORE the app
+         boots, so refreshing a client-side route keeps you on that route
+         instead of landing on the home page. No-op on normal visits. -->
+    <script>
+      (function () {
+        var l = window.location;
+        if (l.search[1] === "/") {
+          var decoded = l.search
+            .slice(1)
+            .split("&")
+            .map(function (s) { return s.replace(/~and~/g, "&"); })
+            .join("?");
+          window.history.replaceState(null, null, l.pathname.slice(0, -1) + decoded + l.hash);
+        }
+      })();
+    </script>
+
+    <!-- Connect to the API backend early to cut request latency -->
+    <link rel="preconnect" href="https://api.mystudyguide.in" crossorigin />
+    <link rel="dns-prefetch" href="https://api.mystudyguide.in" />
+
+    <!-- Google Analytics (GA4). Loads ONLY when a real Measurement ID is set via
+         the VITE_GA_MEASUREMENT_ID env var (set in your host's build settings).
+         Vite substitutes
+         %VITE_GA_MEASUREMENT_ID% at build time; if it's unset/empty the guard
+         below skips loading gtag entirely, so nothing runs until you add the ID. -->
+    <script>
+      (function () {
+        var GA_ID = "%VITE_GA_MEASUREMENT_ID%";
+        if (!GA_ID || GA_ID.indexOf("VITE_") !== -1 || GA_ID.charAt(0) !== "G") return;
+        var s = document.createElement("script");
+        s.async = true;
+        s.src = "https://www.googletagmanager.com/gtag/js?id=" + GA_ID;
+        document.head.appendChild(s);
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = function () { window.dataLayer.push(arguments); };
+        window.gtag("js", new Date());
+        window.gtag("config", GA_ID);
+      })();
+    </script>
+
+    <!-- Google AdSense — site verification + ad serving. Present in <head> on
+         every page (SPA), which is what AdSense's "AdSense code snippet"
+         ownership check looks for. -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1434146774724763" crossorigin="anonymous"></script>
+
+    <!-- SEO -->
+    <title>My Study Guide — Prepare Smart, Achieve More</title>
+    <meta
+      name="description"
+      content="My Study Guide offers subject-wise quizzes, mock tests, test series, instant results, performance analytics and study resources for competitive exam preparation."
+    />
+    <meta name="keywords" content="quiz, test series, exam preparation, JEE, NEET, mock tests, online learning" />
+    <meta name="author" content="My Study Guide" />
+    <link rel="canonical" href="https://www.mystudyguide.in/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.mystudyguide.in/" />
+    <meta property="og:title" content="My Study Guide — Prepare Smart, Achieve More" />
+    <meta
+      property="og:description"
+      content="Subject-wise quizzes, full-length test series, instant results and analytics."
+    />
+    <meta property="og:site_name" content="My Study Guide" />
+    <meta property="og:image" content="https://www.mystudyguide.in/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="My Study Guide — Prepare Smart, Achieve More" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="My Study Guide — Prepare Smart, Achieve More" />
+    <meta name="twitter:description" content="Quizzes, test series and analytics for exam aspirants." />
+    <meta name="twitter:image" content="https://www.mystudyguide.in/og-image.png" />
+
+    <!-- Site-wide structured data (Schema.org). Organization (also
+         EducationalOrganization) + WebSite — real, verifiable facts only
+         (name, URL, logo, description, what we offer, where we serve, topics
+         covered). No SearchAction (there is no public search results URL) and
+         NO fake ratings/reviews. `sameAs` is intentionally omitted until real
+         social profile URLs are added. Page-level JSON-LD (BreadcrumbList,
+         FAQPage etc.) is injected separately by useSeo under a different
+         <script id="seo-jsonld">, so these never collide. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": ["Organization", "EducationalOrganization"],
+            "@id": "https://www.mystudyguide.in/#organization",
+            "name": "My Study Guide",
+            "alternateName": "MyStudyGuide",
+            "url": "https://www.mystudyguide.in/",
+            "logo": "https://www.mystudyguide.in/apple-touch-icon.png",
+            "image": "https://www.mystudyguide.in/og-image.png",
+            "slogan": "Prepare Smart, Achieve More",
+            "description": "My Study Guide is an online exam-preparation platform offering subject-wise quizzes, full-length mock tests, test series, practice questions and study materials — organised by stream, subject and topic — with instant results and detailed performance analytics. Free previews and shared public links are available without login, with full access via subscription plans, plus computer-based (CBT) online exams and all-India leaderboards, serving students, content creators and institutes.",
+            "areaServed": { "@type": "Country", "name": "India" },
+            "knowsAbout": [
+              "Competitive exam preparation",
+              "Subject-wise quizzes",
+              "Full-length mock tests",
+              "Test series",
+              "Practice questions",
+              "Performance analytics",
+              "Computer-based tests (CBT)",
+              "JEE",
+              "NEET"
+            ]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://www.mystudyguide.in/#website",
+            "name": "My Study Guide",
+            "alternateName": "MyStudyGuide",
+            "url": "https://www.mystudyguide.in/",
+            "inLanguage": "en",
+            "description": "Subject-wise quizzes, full-length test series, instant results and performance analytics for competitive exam preparation.",
+            "publisher": { "@id": "https://www.mystudyguide.in/#organization" }
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

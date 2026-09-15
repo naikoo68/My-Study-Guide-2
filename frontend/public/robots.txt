@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /client
+Disallow: /creator
+Disallow: /dashboard
+Disallow: /register
+Sitemap: https://www.mystudyguide.in/sitemap.xml

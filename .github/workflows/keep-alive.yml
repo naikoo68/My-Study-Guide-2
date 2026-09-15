@@ -1,0 +1,20 @@
+name: Ping backend health
+
+# Pings the backend health endpoint every 5 minutes. The health endpoint also
+# declares any due CBT results on each ping, so results release on their own
+# (within ~5 min) without an admin opening the panel.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /api/health
+        run: |
+          echo "Pinging backend health endpoint..."
+          curl -sS -m 40 https://api.mystudyguide.in/api/health || true
+          echo ""
+          echo "Done."

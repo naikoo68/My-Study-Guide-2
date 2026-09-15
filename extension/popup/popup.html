@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>My Study Guide Companion</title>
+  </head>
+  <body>
+    <header class="hd">
+      <div class="brand">
+        <span class="logo">🧠</span>
+        <div>
+          <div class="t">My Study Guide</div>
+          <div class="s">Companion</div>
+        </div>
+      </div>
+      <button id="gear" class="icon" title="Settings">⚙️</button>
+    </header>
+
+    <!-- Sign-in view -->
+    <section id="view-auth" class="view hidden">
+      <p class="muted">Sign in with your My Study Guide account.</p>
+      <input id="email" class="in" type="email" placeholder="Email" autocomplete="username" />
+      <input id="password" class="in" type="password" placeholder="Password" autocomplete="current-password" />
+      <button id="signin" class="btn primary">Sign in</button>
+      <p id="auth-msg" class="msg"></p>
+    </section>
+
+    <!-- Settings view -->
+    <section id="view-settings" class="view hidden">
+      <label class="lbl">API base URL</label>
+      <input id="apiBase" class="in" placeholder="https://your-backend/api" />
+      <label class="lbl">My Study Guide site</label>
+      <input id="site" class="in" placeholder="https://your-site" />
+      <div class="row">
+        <button id="save-settings" class="btn primary">Save</button>
+        <button id="signout" class="btn ghost">Sign out</button>
+      </div>
+      <p id="settings-msg" class="msg"></p>
+    </section>
+
+    <!-- Main view -->
+    <section id="view-main" class="view hidden">
+      <div class="detected">
+        <div id="platform" class="pill">Detecting…</div>
+        <div id="title" class="title"></div>
+        <div id="avail" class="avail"></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn act" data-action="questions">🧠 Create Questions</button>
+        <button class="btn act" data-action="summarize">📝 Create Summary</button>
+        <button class="btn act" data-action="flashcards">🗂 Create Flashcards</button>
+        <button class="btn act" data-action="explain">💡 Explain</button>
+      </div>
+
+      <!-- Options for Questions -->
+      <div id="q-opts" class="opts hidden">
+        <div class="row">
+          <label class="lbl">Number
+            <input id="q-count" class="in sm" type="number" min="1" max="50" value="10" />
+          </label>
+          <label class="lbl">Difficulty
+            <select id="q-diff" class="in sm">
+              <option value="">Mixed</option>
+              <option>Easy</option>
+              <option>Medium</option>
+              <option>Hard</option>
+            </select>
+          </label>
+        </div>
+        <label class="lbl">Type</label>
+        <div id="q-types" class="types">
+          <label><input type="checkbox" value="mcq" checked /> MCQ</label>
+          <label><input type="checkbox" value="numericalmcq" /> Numerical</label>
+          <label><input type="checkbox" value="assertion" /> Assertion &amp; Reason</label>
+          <label><input type="checkbox" value="matching" /> Matching</label>
+          <label><input type="checkbox" value="statement" /> Statement</label>
+        </div>
+        <button id="q-go" class="btn primary">Generate</button>
+      </div>
+
+      <div id="progress" class="progress hidden"></div>
+      <div id="result" class="result"></div>
+    </section>
+
+    <footer class="ft">
+      <a id="open-site" href="#" target="_blank" rel="noreferrer">Open My Study Guide ↗</a>
+      <span id="ver" class="muted"></span>
+    </footer>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

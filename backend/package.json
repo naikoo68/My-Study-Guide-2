@@ -1,0 +1,56 @@
+{
+  "name": "my-study-guide-backend",
+  "version": "1.0.0",
+  "description": "REST API for My Study Guide — quizzes & test series platform (MongoDB or DynamoDB via DB_ENGINE)",
+  "type": "module",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "seed": "node src/utils/seed.js",
+    "create-tables": "node src/scripts/createTablesCli.js",
+    "migrate-from-mongo": "node src/scripts/migrateFromMongo.js",
+    "backfill-practice-exams": "node src/scripts/backfillPracticeExamsCli.js"
+  },
+  "keywords": [
+    "education",
+    "quiz",
+    "test-series",
+    "express",
+    "dynamodb",
+    "aws"
+  ],
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.658.0",
+    "@aws-sdk/lib-dynamodb": "^3.658.0",
+    "@smithy/node-http-handler": "^3.2.0",
+    "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.5.1",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "express-rate-limit": "^7.4.1",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "mathjax-full": "^3.2.2",
+    "mongodb": "^6.9.0",
+    "mongoose": "^8.8.0",
+    "morgan": "^1.10.0",
+    "multer": "^2.0.0",
+    "nodemailer": "^9.0.3",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.9",
+    "mongodb-memory-server": "^10.1.4",
+    "vitest": "^2.1.9"
+  }
+}

@@ -1,0 +1,297 @@
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useNavigate, Link, useLocation } from "react-router-dom";
+import {
+  LayoutDashboard,
+  BookCopy,
+  FileStack,
+  FileText,
+  BookMarked,
+  Users,
+  Trophy,
+  Mail,
+  MessageSquare,
+  Megaphone,
+  Palette,
+  KeyRound,
+  Sparkles,
+  GraduationCap,
+  Ticket,
+  ArrowRightLeft,
+  Share2,
+  MonitorCheck,
+  SearchCheck,
+  BookOpen,
+  LogOut,
+  Menu,
+  Moon,
+  Sun,
+  Home,
+  Feather,
+  FilePlus2,
+  LayoutGrid,
+  Files,
+  HardDrive,
+  DatabaseBackup,
+  Star,
+  Trash2,
+  SlidersHorizontal,
+  FolderOpen,
+} from "lucide-react";
+import { useTheme } from "../../context/ThemeContext";
+import { useAuth } from "../../context/AuthContext";
+import { useSettings } from "../../context/SettingsContext";
+import { messageService } from "../../services";
+import OnboardingWizard from "../../components/admin/OnboardingWizard";
+import GlobalSearch from "../../components/ui/GlobalSearch";
+import { Facebook as FacebookIcon } from "../../components/ui/SocialIcons";
+import Avatar from "../../components/ui/Avatar";
+
+// `superOnly: true` items are visible only to the platform super-admin (role
+// "admin"); an institute_admin sees the rest, scoped to their own institute.
+const nav = [
+  { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
+  // Opens the "Manage Content" landing page, which links to the three
+  // content-building sections below.
+  { to: "/admin/manage-content", label: "Manage Content", icon: FolderOpen, end: true },
+  // Reached from the Manage Content page — hidden from the sidebar, but kept in
+  // `nav` so the feature-access route guard below still protects them.
+  { to: "/admin/content", label: "Public Quizzes", icon: BookCopy, feature: "content", hidden: true },
+  { to: "/admin/tests", label: "Public Test Series", icon: FileStack, feature: "tests", hidden: true },
+  { to: "/admin/practice", label: "My Practice", icon: GraduationCap, feature: "practice", hidden: true },
+  { to: "/admin/previous-papers", label: "Previous Papers", icon: Files, feature: "previousPapers" },
+  { to: "/admin/checker", label: "Question Checker", icon: SearchCheck, feature: "checker" },
+  { to: "/admin/shared", label: "Shared Links", icon: Share2, feature: "shared" },
+  { to: "/admin/cbt", label: "Online Exams", icon: MonitorCheck, feature: "cbt" },
+  { to: "/admin/migration", label: "Migration", icon: ArrowRightLeft, feature: "migration" },
+  { to: "/admin/coupons", label: "Coupons", icon: Ticket, feature: "coupons" },
+  { to: "/admin/study", label: "Study Material", icon: BookMarked, feature: "study" },
+  { to: "/admin/documents", label: "Documents", icon: FileText, feature: "documents" },
+  { to: "/admin/notes", label: "Handwritten Notes", icon: Feather, feature: "notes" },
+  { to: "/admin/pdf-builder", label: "PDF Builder", icon: FilePlus2, feature: "pdfBuilder" },
+  { to: "/admin/resume", label: "Resume Builder", icon: FileText, feature: "resume" },
+  { to: "/admin/users", label: "Users", icon: Users, feature: "users" },
+  { to: "/admin/performance", label: "Performance", icon: Trophy, feature: "performance" },
+  { to: "/admin/storage", label: "Storage", icon: HardDrive, superOnly: true },
+  { to: "/admin/backup", label: "Backup & Restore", icon: DatabaseBackup, feature: "backup" },
+  { to: "/admin/feedback", label: "Feedback", icon: MessageSquare, feature: "feedback" },
+  { to: "/admin/reviews", label: "Reviews", icon: Star, feature: "reviews" },
+  { to: "/admin/messages", label: "Messages", icon: Mail, feature: "messages" },
+  { to: "/admin/notices", label: "Notice Board", icon: Megaphone, feature: "notices" },
+  { to: "/admin/facebook", label: "Facebook Auto-Post", icon: FacebookIcon, feature: "facebook" },
+  { to: "/admin/ai-generator", label: "AI Generator", icon: Sparkles, feature: "aiGenerator" },
+  { to: "/admin/visualize", label: "Visualization Studio", icon: LayoutGrid, feature: "visualize" },
+  { to: "/admin/ai-keys", label: "AI Keys (APIs)", icon: KeyRound, feature: "aiKeys" }, // institute admins manage their OWN keys (tenant-scoped); super-admin manages platform keys
+  { to: "/connections", label: "Companion", icon: Sparkles },
+  { to: "/admin/customization", label: "Customization", icon: Palette },
+  { to: "/admin/features", label: "Features", icon: SlidersHorizontal, superOnly: true },
+  { to: "/admin/recycle-bin", label: "Recycle Bin", icon: Trash2, superOnly: true },
+  { to: "/admin/manual", label: "User Manual", icon: BookOpen },
+];
+
+export default function AdminLayout() {
+  const [open, setOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
+
+  // Lock background page scroll while the mobile drawer is open, so scrolling
+  // inside the drawer doesn't move the page behind it (and the drawer can scroll
+  // independently to reveal every nav item + Log out on small screens).
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
+  const { theme, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
+  const { settings, loaded: settingsLoaded } = useSettings();
+  // First-run setup wizard: auto-opens for a fresh institute admin until they
+  // finish it. Never shown to the platform super-admin (role "admin").
+  const [wizardDone, setWizardDone] = useState(false);
+  const showOnboarding =
+    settingsLoaded && // wait for the server refresh so we don't act on a stale cross-account cache
+    user?.role === "institute_admin" &&
+    settings?.onboardingCompleted !== true &&
+    settings?.onboardingDismissed !== true && // closing it once ("finish later") won't nag on every reload
+    !wizardDone;
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Per-institute feature access. For an institute admin, features their
+  // super-admin turned OFF are hidden from the sidebar; the platform super-admin
+  // (role "admin") always sees everything. A feature is ON unless set to false.
+  const instituteFeatures = user?.role === "institute_admin" ? (user?.tenant?.features || {}) : null;
+
+  // Global feature switches from Admin → Features (stored in site settings).
+  // These hide a section for EVERYONE (super-admin included). The four core
+  // features are always on and never consulted here. A feature is ON unless the
+  // owner explicitly stored it as false.
+  const globalFeatures = settings?.featureFlags || {};
+  const ALWAYS_ON = new Set(["users", "aiKeys", "storage", "customization"]);
+  const isGloballyOff = (feature) => !!feature && !ALWAYS_ON.has(feature) && globalFeatures[feature] === false;
+
+  const isItemVisible = (n) => {
+    if (n.superOnly && user?.role !== "admin") return false;
+    if (isGloballyOff(n.feature)) return false;
+    if (instituteFeatures && n.feature && instituteFeatures[n.feature] === false) return false;
+    return true;
+  };
+
+  // `hidden` items (reached from the Manage Content page) are kept in `nav` for
+  // route guarding but never rendered in the sidebar.
+  const visibleNav = nav.filter((n) => !n.hidden && isItemVisible(n));
+
+  // Guard direct-URL access: if an admin opens a page for a feature that's been
+  // turned off (globally, or per-institute), send them back to the dashboard.
+  useEffect(() => {
+    const hit = nav.find((n) => n.feature && (location.pathname === n.to || location.pathname.startsWith(n.to + "/")));
+    if (!hit) return;
+    if (isGloballyOff(hit.feature)) return void navigate("/admin", { replace: true });
+    if (instituteFeatures && instituteFeatures[hit.feature] === false) navigate("/admin", { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, globalFeatures]);
+
+  // Keep the unread-messages badge fresh
+  useEffect(() => {
+    let active = true;
+    messageService
+      .unreadCount()
+      .then((r) => active && setUnread(r.unread || 0))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [location.pathname]);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
+
+  // A single sidebar link (used for both top-level items and group children).
+  const renderLink = (n) => (
+    <NavLink
+      key={n.to}
+      to={n.to}
+      end={n.end}
+      onClick={() => setOpen(false)}
+      className={({ isActive }) =>
+        `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+          isActive
+            ? "bg-brand-600 text-white shadow-soft"
+            : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+        }`
+      }
+    >
+      <n.icon className="h-5 w-5" />
+      <span className="flex-1">{n.label}</span>
+      {n.to === "/admin/messages" && unread > 0 && (
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-accent-500 px-1.5 text-xs font-bold text-white">
+          {unread}
+        </span>
+      )}
+    </NavLink>
+  );
+
+  // Where "View my student portal" points for an institute admin. The ?t=<slug>
+  // tenant selector is only needed on the platform apex (where the host would
+  // otherwise resolve to the platform's DEFAULT tenant). When the admin is
+  // already on their institute's OWN subdomain (slug.rootDomain), the host
+  // scopes the tenant, so appending ?t=slug is redundant — and looked buggy:
+  // e.g. bansalacademy.mystudyguide.in/?t=bansalacademy. In that case link to "/".
+  const tenantSlug = user?.tenant?.slug || "";
+  const rootDomain = String(settings?.rootDomain || "").toLowerCase().replace(/^\./, "");
+  const currentHost = (typeof window !== "undefined" ? window.location.hostname : "").toLowerCase();
+  const onOwnSubdomain = !!rootDomain && !!tenantSlug && currentHost === `${tenantSlug}.${rootDomain}`;
+  const studentPortalHref = onOwnSubdomain ? "/" : `/?t=${tenantSlug}`;
+
+  const SidebarContent = () => (
+    <div className="flex h-full flex-col">
+      <Link to="/admin" className="flex items-center gap-2 px-6 py-5">
+        {settings.logoUrl ? (
+          <img src={settings.logoUrl} alt={settings.siteName} className="h-9 w-9 rounded-xl object-cover" />
+        ) : (
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-600 to-accent-500 text-white">
+            <GraduationCap className="h-5 w-5" />
+          </span>
+        )}
+        <div>
+          <p className="text-sm font-extrabold leading-none">{settings.siteName}</p>
+          <p className="text-xs text-slate-400">Admin Panel</p>
+        </div>
+      </Link>
+
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3">
+        {visibleNav.map(renderLink)}
+      </nav>
+
+      <div className="space-y-1 border-t border-slate-200 p-3 dark:border-slate-800">
+        {user?.role === "institute_admin" && user?.tenant?.slug ? (
+          // Institute admins get sent to THEIR OWN public portal. A full-page
+          // load is required so the tenant is applied by the API layer for every
+          // request (via ?t=<slug> on the apex, or the subdomain host itself).
+          <a href={studentPortalHref} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
+            <Home className="h-5 w-5" /> View my student portal
+          </a>
+        ) : (
+          <Link to="/" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
+            <Home className="h-5 w-5" /> Switch to Student Mode
+          </Link>
+        )}
+        <button onClick={handleLogout} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20">
+          <LogOut className="h-5 w-5" /> Log out
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
+      {showOnboarding && <OnboardingWizard onDone={() => setWizardDone(true)} onClose={() => setWizardDone(true)} />}
+
+      {/* Desktop sidebar */}
+      <aside className="hidden w-64 flex-shrink-0 border-r border-slate-200 bg-white lg:block dark:border-slate-800 dark:bg-slate-900">
+        <div className="sticky top-0 h-screen">
+          <SidebarContent />
+        </div>
+      </aside>
+
+      {/* Mobile drawer */}
+      {open && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
+          <aside className="absolute left-0 top-0 h-full w-64 bg-white dark:bg-slate-900">
+            <SidebarContent />
+          </aside>
+        </div>
+      )}
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Topbar */}
+        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
+          <button onClick={() => setOpen(true)} className="rounded-lg p-2 lg:hidden">
+            <Menu className="h-6 w-6" />
+          </button>
+          {/* Global admin search — surfaces ALL metadata (incl. drafts & client items) */}
+          <div className="min-w-0 flex-1">
+            <GlobalSearch
+              mode="admin"
+              placeholder="Search all content — streams, subjects, topics, quizzes, tests…"
+              className="max-w-2xl"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={toggleTheme} className="rounded-lg p-2 text-slate-600 dark:text-slate-300">
+              {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </button>
+            <Avatar src={user?.avatar} name={user?.name || "Admin"} size={36} />
+
+          </div>
+        </header>
+
+        <main className="flex-1 p-4 sm:p-6">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}
