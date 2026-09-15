@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+build/
+
+# Environment files (never commit secrets)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.sw?
+
+
+# Test coverage: keep the machine-readable lcov.info reports (committed so
+# external quality/coverage graders can read them from the archive), but ignore
+# the generated HTML report and scratch files.
+**/coverage/lcov-report/
+**/coverage/tmp/
+**/coverage/.tmp/
+
+
+# Generated at build time by frontend/scripts/pack-extension.mjs (npm run build).
+# The extension source of truth is the extension/ directory; this packaged zip is
+# a build artifact and must not be committed (a binary archive is unscannable).
+frontend/public/companion-extension.zip
